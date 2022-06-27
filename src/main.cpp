@@ -8,11 +8,23 @@ String number = "+917609934272"; //-> change with your number
 void setup() {
   delay(7000); //delay for 7 seconds to make sure the modules get the signal
   Serial.begin(9600);
-  _buffer.reserve(50);
+  // _buffer.reserve(50);
   Serial.println("System Started...");
   sim.begin(9600);
   delay(1000);
   Serial.println("Type s to send an SMS, r to receive an SMS, and c to make a call");
+}
+
+String readSerial() {
+  _timeout = 0;
+  while  (!sim.available() && _timeout < 12000  )
+  {
+    delay(13);
+    _timeout++;
+  }
+  if (sim.available()) {
+    return sim.readString();
+  }
 }
 
 void SendMessage()
@@ -28,8 +40,9 @@ void SendMessage()
   delay(100);
   sim.println((char)26);// ASCII code of CTRL+Z
   delay(200);
-  _buffer = _readSerial();
+  _buffer = readSerial();
 }
+
 void RecieveMessage()
 {
   Serial.println ("SIM800L Read an SMS");
@@ -39,27 +52,10 @@ void RecieveMessage()
   delay(200);
   Serial.write ("Unread Message done");
 }
-String _readSerial() {
-  _timeout = 0;
-  while  (!sim.available() && _timeout < 12000  )
-  {
-    delay(13);
-    _timeout++;
-  }
-  if (sim.available()) {
-    return sim.readString();
-  }
-}
-void callNumber() {
-  sim.print (F("ATD"));
-  sim.print (number);
-  sim.print (F(";\r\n"));
-  _buffer = _readSerial();
-  Serial.println(_buffer);
-}
+
 
 void loop() {
-  if (Serial.available() > 0)
+  if (sim.available () > 0)
     switch (Serial.read())
     {
       case 's':
@@ -67,11 +63,7 @@ void loop() {
         break;
       case 'r':
         RecieveMessage();
-        break;
-      case 'c':
-        callNumber();
-        break;
     }
-  if (sim.available() > 0)
-    Serial.write(sim.read());
+  // if (sim.available() > 0)
+  //   Serial.write(sim.read());
 }
