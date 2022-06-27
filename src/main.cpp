@@ -32,39 +32,40 @@ void setup() {
   gsmSerial.begin(GPSBaud);
   Serial.print("Vehicle Tracking");
   delay(2000);
-  // gsm_init();
-  Serial.println("AT+CNMI=2,2,0,0,0");
+  gsm_init();
+  gsmSerial.println("AT+CNMI=2,2,0,0,0");
   delay(2000);
   temp=0;
   delay(1000);
-  // boolean net_flag=1;
-  // while (net_flag)
-  // {
-  //   Serial.println("AT+CPIN?");
-  //   while (Serial.find((char*)"+CPIN: READY"))
-  //   {
-  //     net_flag=0;
-  //   }
-  //   delay(1000);
-  // }
+  boolean net_flag=1;
+  while (net_flag)
+  {
+    gsmSerial.println("AT+CPIN?");
+    while (gsmSerial.find((char*)"+CPIN: READY"))
+    {
+      net_flag=0;
+    }
+    delay(1000);
+  }
   delay(1000);
 }
 
 
 void init_sms(){
-  Serial.println("AT+CMGF=1");
+  gsmSerial.println("AT+CMGF=1");
   delay(400);
-  Serial.println("AT+CMGS=\""+number+"\"");
+  gsmSerial.println("AT+CMGS=\""+number+"\"");
   delay(400);
 }
 
 //
 void send_data(String message){
-  Serial.print(message);
+  gsmSerial.print(message);
   delay(200);
 }
 void send_sms(){
-  Serial.write(26);
+  gsmSerial.write(26);
+  delay(1000);
 }
 //
 
@@ -73,18 +74,17 @@ void recieveMessage()
 {
   while (gsmSerial.available()>0)
   {
+    Serial.print("Listen to DATA");
     Serial.write(gsmSerial.read());
-    // if (Serial.find((char*)"Track"))
-    // {
-    //   //DO SOMETHING
-    //   temp=1;
-    //   break;
-    // }else{
-    //   temp=0;
-    // }
-    // Serial.println("Reading SMS");
-    // Serial.println(Serial.read());
-    // Serial.println(Serial.readString());
+    if (gsmSerial.find((char*)"Track"))
+    {
+      //DO SOMETHING
+      temp=1;
+      break;
+    }else{
+      temp=0;
+    }
+
   }
 }
 
@@ -92,12 +92,11 @@ void recieveMessage()
 void tracking(){
   init_sms();
   send_data("Vehicle location is:");
-  Serial.print("Latitude: ");
-  Serial.print(gps.location.lat(), 6);
-  Serial.print("\n Longitude: ");
-  Serial.println(gps.location.lng(), 6);
+  gsmSerial.print("Latitude: ");
+  gsmSerial.print(gps.location.lat(), 6);
+  gsmSerial.print("\n Longitude: ");
+  gsmSerial.println(gps.location.lng(), 6);
   send_sms();
-  delay(2000);
 }
 
 void loop() {
