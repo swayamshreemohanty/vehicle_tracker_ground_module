@@ -1,69 +1,114 @@
 #include <Arduino.h>
 #include "SoftwareSerial.h"
 #include "TinyGPS++.h"
-SoftwareSerial sim(5, 4);
-int _timeout;
-String _buffer;
+static const uint32_t GPSBaud = 9600;
+// The TinyGPS++ object
+TinyGPSPlus gps;
+SoftwareSerial gpsSerial(5, 4); //RX, TX
+String stringVal = "";
 String number = "+917609934272"; //-> change with your number
+int temp=0;
+
+
 void setup() {
-  delay(7000); //delay for 7 seconds to make sure the modules get the signal
   Serial.begin(9600);
-  // _buffer.reserve(50);
-  Serial.println("System Started...");
-  sim.begin(9600);
-  delay(1000);
-  Serial.println("Type s to send an SMS, r to receive an SMS, and c to make a call");
+  gpsSerial.begin(GPSBaud);
+  Serial.print("Vehicle Tracking");
+  delay(2000);
+  gsm_init();
+  Serial.println("AT+CNMI=2,2,0,0,0");
+  delay(2000);
+  temp=0;
 }
 
-String readSerial() {
-  _timeout = 0;
-  while  (!sim.available() && _timeout < 12000  )
+void gsm_init(){
+  boolean at_flag=1;
+  while (at_flag)
   {
-    delay(13);
-    _timeout++;
+    Serial.println("ATE0");
+    while (Serial.available()>0)
+    {
+      if (Serial.find("OK"))
+      {
+        at_flag=0;
+      }
+    }
+    delay(1000);
   }
-  if (sim.available()) {
-    return sim.readString();
+  delay(1000);
+  boolean net_flag=1;
+  while (net_flag)
+  {
+    Serial.println("AT+CPIN?");
+    while (Serial.find("+CPIN: READY"))
+    {
+      net_flag=0;
+    }
+    delay(1000);
+  }
+  delay(1000);
+}
+
+
+void init_sms(){
+  Serial.println("AT+CMGF=1");
+  delay(400);
+  Serial.println("AT+CMGS=\""+number+"\"");
+  delay(400);
+}
+
+//
+void send_data(String message){
+  Serial.print(message);
+  delay(200);
+}
+void send_sms(){
+  Serial.write(26);
+}
+//
+
+
+void recieveMessage()
+{
+  while (Serial.available()>0)
+  {
+    if (Serial.find("Track"))
+    {
+      //DO SOMETHING
+      temp=1;
+      break;
+    }else{
+      temp=0;
+    }
+    Serial.println("Reading SMS");
+    Serial.println(Serial.readString());
   }
 }
 
-void SendMessage()
-{
-  Serial.println ("Sending Message");
-  sim.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
-  delay(200);
-  //Serial.println ("Set SMS Number");
-  sim.println("AT+CMGS=\"" + number + "\"\r"); //Mobile phone number to send message
-  delay(200);
-  String SMS = "Hello, how are you? greetings from miliohm.com admin";
-  sim.println(SMS);
-  delay(100);
-  sim.println((char)26);// ASCII code of CTRL+Z
-  delay(200);
-  _buffer = readSerial();
-}
 
-void RecieveMessage()
-{
-  Serial.println ("SIM800L Read an SMS");
-  sim.println("AT+CMGF=1");
-  delay (200);
-  sim.println("AT+CNMI=1,2,0,0,0"); // AT Command to receive a live SMS
-  delay(200);
-  Serial.write ("Unread Message done");
+void tracking(){
+  init_sms();
+  send_data("Vehicle location is:");
+  Serial.print("Latitude: ");
+  Serial.print(gps.location.lat(), 6);
+  Serial.print("\n Longitude: ");
+  Serial.println(gps.location.lng(), 6);
+  send_sms();
+  delay(2000);
 }
-
 
 void loop() {
-  if (sim.available () > 0)
-    switch (Serial.read())
+  recieveMessage();
+  while (temp)  //run the loop if temp==1;
+  {
+    while (gpsSerial.available()>0)
     {
-      case 's':
-        SendMessage();
-        break;
-      case 'r':
-        RecieveMessage();
+      gps.encode(gpsSerial.read());
+      if (gps.location.isUpdated())
+      {
+        temp=0;
+        tracking();
+      }
     }
-  // if (sim.available() > 0)
-  //   Serial.write(sim.read());
+  }
 }
