@@ -9,6 +9,21 @@ String stringVal = "";
 String number = "+917609934272"; //-> change with your number
 int temp=0;
 
+void gsm_init(){
+  boolean at_flag=1;
+  while (at_flag)
+  {
+    Serial.println("ATE0");
+    while (Serial.available()>0)
+    {
+      if (Serial.find((char*)"OK"))
+      {
+        at_flag=0;
+      }
+    }
+    delay(1000);
+  }
+}
 
 void setup() {
   Serial.begin(9600);
@@ -19,28 +34,12 @@ void setup() {
   Serial.println("AT+CNMI=2,2,0,0,0");
   delay(2000);
   temp=0;
-}
-
-void gsm_init(){
-  boolean at_flag=1;
-  while (at_flag)
-  {
-    Serial.println("ATE0");
-    while (Serial.available()>0)
-    {
-      if (Serial.find("OK"))
-      {
-        at_flag=0;
-      }
-    }
-    delay(1000);
-  }
   delay(1000);
   boolean net_flag=1;
   while (net_flag)
   {
     Serial.println("AT+CPIN?");
-    while (Serial.find("+CPIN: READY"))
+    while (Serial.find((char*)"+CPIN: READY"))
     {
       net_flag=0;
     }
@@ -72,7 +71,7 @@ void recieveMessage()
 {
   while (Serial.available()>0)
   {
-    if (Serial.find("Track"))
+    if (Serial.find((char*)"Track"))
     {
       //DO SOMETHING
       temp=1;
