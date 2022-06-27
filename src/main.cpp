@@ -81,7 +81,7 @@ void recieveMessage()
       temp=0;
     }
     Serial.println("Reading SMS");
-    Serial.println(Serial.readString());
+    Serial.println(Serial.read());
   }
 }
 
