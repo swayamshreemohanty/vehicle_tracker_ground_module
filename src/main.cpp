@@ -5,6 +5,7 @@ static const uint32_t GPSBaud = 9600;
 // The TinyGPS++ object
 TinyGPSPlus gps;
 SoftwareSerial gpsSerial(5, 4); //RX, TX
+SoftwareSerial gsmSerial(9, 10); //RX, TX
 String stringVal = "";
 String number = "+917609934272"; //-> change with your number
 int temp=0;
@@ -28,23 +29,24 @@ void gsm_init(){
 void setup() {
   Serial.begin(9600);
   gpsSerial.begin(GPSBaud);
+  gsmSerial.begin(GPSBaud);
   Serial.print("Vehicle Tracking");
   delay(2000);
-  gsm_init();
+  // gsm_init();
   Serial.println("AT+CNMI=2,2,0,0,0");
   delay(2000);
   temp=0;
   delay(1000);
-  boolean net_flag=1;
-  while (net_flag)
-  {
-    Serial.println("AT+CPIN?");
-    while (Serial.find((char*)"+CPIN: READY"))
-    {
-      net_flag=0;
-    }
-    delay(1000);
-  }
+  // boolean net_flag=1;
+  // while (net_flag)
+  // {
+  //   Serial.println("AT+CPIN?");
+  //   while (Serial.find((char*)"+CPIN: READY"))
+  //   {
+  //     net_flag=0;
+  //   }
+  //   delay(1000);
+  // }
   delay(1000);
 }
 
@@ -69,18 +71,20 @@ void send_sms(){
 
 void recieveMessage()
 {
-  while (Serial.available()>0)
+  while (gsmSerial.available()>0)
   {
-    if (Serial.find((char*)"Track"))
-    {
-      //DO SOMETHING
-      temp=1;
-      break;
-    }else{
-      temp=0;
-    }
-    Serial.println("Reading SMS");
-    Serial.println(Serial.read());
+    Serial.write(gsmSerial.read());
+    // if (Serial.find((char*)"Track"))
+    // {
+    //   //DO SOMETHING
+    //   temp=1;
+    //   break;
+    // }else{
+    //   temp=0;
+    // }
+    // Serial.println("Reading SMS");
+    // Serial.println(Serial.read());
+    // Serial.println(Serial.readString());
   }
 }
 
@@ -98,16 +102,16 @@ void tracking(){
 
 void loop() {
   recieveMessage();
-  while (temp)  //run the loop if temp==1;
-  {
-    while (gpsSerial.available()>0)
-    {
-      gps.encode(gpsSerial.read());
-      if (gps.location.isUpdated())
-      {
-        temp=0;
-        tracking();
-      }
-    }
-  }
+  // while (temp)  //run the loop if temp==1;
+  // {
+  //   while (gpsSerial.available()>0)
+  //   {
+  //     gps.encode(gpsSerial.read());
+  //     if (gps.location.isUpdated())
+  //     {
+  //       temp=0;
+  //       tracking();
+  //     }
+  //   }
+  // }
 }
