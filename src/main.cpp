@@ -9,21 +9,19 @@ SoftwareSerial gsmSerial(9, 10); //RX, TX
 String stringVal = "";
 String number = "+917609934272"; //-> change with your number
 int temp=0;
+char gsmState ='i';
 
-void gsm_init(){
-  boolean at_flag=1;
-  while (at_flag)
-  {
-    Serial.println("ATE0");
-    while (Serial.available()>0)
-    {
-      if (Serial.find((char*)"OK"))
-      {
-        at_flag=0;
-      }
-    }
-    delay(1000);
-  }
+void reset_gsm_state(){
+  gsmState ='i';
+}
+
+void init_receive_sms(){
+  Serial.println("Init receive");
+  gsmSerial.println("AT+CMGF=1"); // Configuring TEXT mode
+  delay(500);
+  gsmSerial.println("AT+CNMI=2,2,0,0,0");
+  delay(400);
+  reset_gsm_state();
 }
 
 void setup() {
@@ -32,22 +30,8 @@ void setup() {
   gsmSerial.begin(GPSBaud);
   Serial.print("Vehicle Tracking");
   delay(2000);
-  gsm_init();
-  gsmSerial.println("AT+CNMI=2,2,0,0,0");
-  delay(2000);
+  init_receive_sms();
   temp=0;
-  delay(1000);
-  boolean net_flag=1;
-  while (net_flag)
-  {
-    gsmSerial.println("AT+CPIN?");
-    while (gsmSerial.find((char*)"+CPIN: READY"))
-    {
-      net_flag=0;
-    }
-    delay(1000);
-  }
-  delay(1000);
 }
 
 
@@ -56,8 +40,8 @@ void init_sms(){
   delay(400);
   gsmSerial.println("AT+CMGS=\""+number+"\"");
   delay(400);
+  reset_gsm_state();
 }
-
 //
 void send_data(String message){
   gsmSerial.print(message);
@@ -68,24 +52,42 @@ void send_sms(){
   delay(1000);
 }
 //
-
-
 void recieveMessage()
 {
-  while (gsmSerial.available()>0)
-  {
-    Serial.print("Listen to DATA");
-    Serial.write(gsmSerial.read());
-    if (gsmSerial.find((char*)"Track"))
+    
+    if (gsmSerial.available() > 0)
     {
-      //DO SOMETHING
-      temp=1;
-      break;
-    }else{
-      temp=0;
-    }
+      char msg = gsmSerial.read();
+      Serial.print(msg);
+      if (msg==(char*)"start")
+      {
+        Serial.println(" this is start");
+      }
+    
+    
+      // Serial.write(gsmSerial.read());
 
-  }
+    //   if (gsmSerial.find((char*)"start"))
+    //   {
+    //     Serial.println("start");
+    //   }
+    //   else if (gsmSerial.find((char*)"stop"))
+    //   {
+    //     Serial.println("stop");
+    //   }
+    //   else if (gsmSerial.find((char*)"checkstatus"))
+    //   {
+    //     Serial.println("checkstatus");
+    //   }
+    //   else if (gsmSerial.find((char*)"fetchlocation"))
+    //   {
+    //     Serial.println("fetchlocation");
+    //   } else{
+    //     Serial.println("invalid");
+
+    //   }     
+    }
+    
 }
 
 
@@ -97,10 +99,25 @@ void tracking(){
   gsmSerial.print("\n Longitude: ");
   gsmSerial.println(gps.location.lng(), 6);
   send_sms();
+  init_receive_sms();
 }
 
 void loop() {
-  recieveMessage();
+  switch (gsmState)
+    {
+      case 's':
+        init_sms();
+        break;
+      case 'r':
+        init_receive_sms();
+        break;
+      default:
+      break;
+    }
+
+    recieveMessage();
+    
+
   // while (temp)  //run the loop if temp==1;
   // {
   //   while (gpsSerial.available()>0)
