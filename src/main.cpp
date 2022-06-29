@@ -7,11 +7,14 @@ SoftwareSerial gpsSerial(4, 5); //RX, TX
 SoftwareSerial gsmSerial(9, 10); //RX, TX
 String number = ""; //-> change with your number
 boolean allowGPSSearching=1;
+boolean allowCheckStatus=1;
 String payLoad="";
+unsigned int loopInterval=10000;
+unsigned long started_waiting_time = 0;
 
 void init_receive_sms(){
   gsmSerial.listen();
-  Serial.println("Init receive");
+  // Serial.println("Init receive");
   gsmSerial.println("AT+CMGF=1"); // Configuring TEXT mode
   delay(500);
   gsmSerial.println("AT+CNMI=2,2,0,0,0");
@@ -20,7 +23,7 @@ void init_receive_sms(){
 }
 
 void init_sms(){
-  Serial.println("Init Send");
+  // Serial.println("Init Send");
   gsmSerial.println("AT+CMGF=1");
   delay(400);
   gsmSerial.println("AT+CMGS=\""+number+"\"");
@@ -33,13 +36,18 @@ void setup() {
   Serial.begin(9600);
   gpsSerial.begin(GPSBaud);
   gsmSerial.begin(GPSBaud);
-  Serial.println("Vehicle Tracking");
+  // Serial.println("Vehicle Tracking");
   delay(2000);
   init_receive_sms();
 }
 
 
-
+//
+void resetData(){
+  allowGPSSearching=1;
+  allowCheckStatus=1;
+  payLoad="";
+}
 //
 void send_data(String message){
   gsmSerial.print(message);
@@ -76,8 +84,8 @@ void tracking()
        gsmSerial.println((char)26);// ASCII code of CTRL+Z for saying the end of sms to  the module
        delay(100);
        //
-       init_receive_sms();
-      allowGPSSearching=0;
+        init_receive_sms();
+        allowGPSSearching=0;
      }
      break;
     }
@@ -129,12 +137,14 @@ void takeAction(){
   }
    else if(isContain(payLoad,"checkstatus"))
   {
-    Serial.println("This is checkstatus");
-    send_sms("Sabu bhala");
+    // Serial.println("This is checkstatus");
+    if(allowCheckStatus){
+      send_sms("Sabu bhala");
+      allowCheckStatus=0;
+    }
   }
    else if(isContain(payLoad,"fetchlocation"))
   {
-    Serial.println("fetchlocation");
     tracking();
   }
   return;
@@ -142,18 +152,25 @@ void takeAction(){
 
 void recieveMessage()
 {
+    unsigned long endTime = millis();
+    unsigned long startTime = 0;
+
     if (gsmSerial.available() > 0)
     {
       payLoad = gsmSerial.readString(); 
       number=payLoad.substring(9,22); //Extract the sender number.
-      Serial.println(payLoad);  
+      // Serial.println(payLoad);  
+      startTime=endTime;
       delay(1000);
     }
-    takeAction();
+    //
+    while ((endTime - startTime) <= loopInterval)
+    { 
+      takeAction();
+      endTime= millis();
+    }
+    resetData();
 }
-
-
-
 
 void loop() {
   recieveMessage();
