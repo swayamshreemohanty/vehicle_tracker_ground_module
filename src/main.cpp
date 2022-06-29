@@ -2,11 +2,10 @@
 #include "SoftwareSerial.h"
 #include "TinyGPS++.h"
 static const uint32_t GPSBaud = 9600;
-// The TinyGPS++ object
 TinyGPSPlus gps;
 SoftwareSerial gpsSerial(4, 5); //RX, TX
 SoftwareSerial gsmSerial(9, 10); //RX, TX
-String number = "+917008865793"; //-> change with your number
+String number = ""; //-> change with your number
 boolean allowGPSSearching=1;
 String payLoad="";
 
@@ -25,6 +24,7 @@ void init_sms(){
   gsmSerial.println("AT+CMGF=1");
   delay(400);
   gsmSerial.println("AT+CMGS=\""+number+"\"");
+  number="";  //Clean the number.
   delay(400);
   return;
 }
@@ -145,7 +145,7 @@ void recieveMessage()
     if (gsmSerial.available() > 0)
     {
       payLoad = gsmSerial.readString(); 
-      Serial.println("DATA Received");  
+      number=payLoad.substring(9,22); //Extract the sender number.
       Serial.println(payLoad);  
       delay(1000);
     }
