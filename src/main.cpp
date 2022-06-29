@@ -4,11 +4,11 @@
 static const uint32_t GPSBaud = 9600;
 // The TinyGPS++ object
 TinyGPSPlus gps;
-SoftwareSerial gpsSerial(5, 4); //RX, TX
+SoftwareSerial gpsSerial(4, 5); //RX, TX
 SoftwareSerial gsmSerial(9, 10); //RX, TX
 String number = "+917008865793"; //-> change with your number
 boolean allowGPSSearching=1;
-String stringVal="";
+String payLoad="";
 
 void init_receive_sms(){
   gsmSerial.listen();
@@ -62,30 +62,23 @@ void tracking()
   while (allowGPSSearching)
   {
     gpsSerial.listen();
-   // Serial.println("Searching for GPS Data");
    while (gpsSerial.available()>0)
     {
-     Serial.println();
-     Serial.println(gpsSerial.read());
-     Serial.println();
-     gps.encode(gpsSerial.read());
-     Serial.println(gps.location.lat());
+      gps.encode(gpsSerial.read());
      if (gps.location.isUpdated())
      {
        init_sms();
-       gsmSerial.print("your vehicle lucation is:");
+       gsmSerial.print("your vehicle location is ");
        gsmSerial.print("latitude: ");
        gsmSerial.print(gps.location.lat(), 6);
-       gsmSerial.print(",longitude: ");
-       gsmSerial.println(gps.location.lng(), 6);
-       //Send SMS
-       gsmSerial.write(26);
-       // gsmSerial.println((char)26);// ASCII code of CTRL+Z for saying the end of sms to  the module
+       gsmSerial.print(", longitude: ");
+       gsmSerial.print(gps.location.lng(), 6);
+       gsmSerial.println((char)26);// ASCII code of CTRL+Z for saying the end of sms to  the module
        delay(100);
        //
        init_receive_sms();
-     }
       allowGPSSearching=0;
+     }
      break;
     }
   }
@@ -126,21 +119,22 @@ bool isContain(String payload, String find){
 //
 
 void takeAction(){
-  if(isContain(stringVal,"start"))
+  if(isContain(payLoad,"start"))
   {
     Serial.println("This is start");
   }
-   else if(isContain(stringVal,"stop"))
+   else if(isContain(payLoad,"stop"))
   {
     Serial.println("This is stop");
   }
-   else if(isContain(stringVal,"checkstatus"))
+   else if(isContain(payLoad,"checkstatus"))
   {
     Serial.println("This is checkstatus");
     send_sms("Sabu bhala");
   }
-   else if(isContain(stringVal,"fetchlocation"))
+   else if(isContain(payLoad,"fetchlocation"))
   {
+    Serial.println("fetchlocation");
     tracking();
   }
   return;
@@ -150,9 +144,9 @@ void recieveMessage()
 {
     if (gsmSerial.available() > 0)
     {
-      stringVal = gsmSerial.readString(); 
+      payLoad = gsmSerial.readString(); 
       Serial.println("DATA Received");  
-      Serial.println(stringVal);  
+      Serial.println(payLoad);  
       delay(1000);
     }
     takeAction();
