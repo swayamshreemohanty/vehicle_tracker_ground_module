@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "SoftwareSerial.h"
 #include "TinyGPS++.h"
-static const uint32_t GPSBaud = 9600;
+static const uint32_t baudRate =9600 ;
 TinyGPSPlus gps;
 SoftwareSerial gpsSerial(4, 5); //RX, TX
 SoftwareSerial gsmSerial(9, 10); //RX, TX
@@ -9,7 +9,7 @@ String number = ""; //-> change with your number
 boolean allowGPSSearching=1;
 boolean allowCheckStatus=1;
 String payLoad="";
-unsigned int loopInterval=10000;
+unsigned int loopInterval=20000;
 unsigned long started_waiting_time = 0;
 
 void init_receive_sms(){
@@ -33,9 +33,9 @@ void init_sms(){
 }
 
 void setup() {
-  Serial.begin(9600);
-  gpsSerial.begin(GPSBaud);
-  gsmSerial.begin(GPSBaud);
+  Serial.begin(baudRate);
+  gpsSerial.begin(baudRate);
+  gsmSerial.begin(baudRate);
   // Serial.println("Vehicle Tracking");
   delay(2000);
   init_receive_sms();
