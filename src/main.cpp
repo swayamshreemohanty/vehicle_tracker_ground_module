@@ -10,12 +10,15 @@ static const uint32_t baudRate =9600 ;
 TinyGPSPlus gps;
 SoftwareSerial gpsSerial(4, 5); //RX, TX
 SoftwareSerial gsmSerial(9, 10); //RX, TX
-String number = ""; //-> change with your number
 boolean allowGPSSearching=1;
 boolean allowCheckStatus=1;
+String number = "";
 String payLoad="";
+String ownerPhoneNumber= "+917008865793"; 
 unsigned int loopInterval=20000;
 unsigned long started_waiting_time = 0;
+int fallAngle=280; 
+int flipAngle=400; 
 
 void init_receive_sms(){
   gsmSerial.listen();
@@ -32,7 +35,6 @@ void init_sms(){
   gsmSerial.println("AT+CMGF=1");
   delay(400);
   gsmSerial.println("AT+CMGS=\""+number+"\"");
-  number="";  //Clean the number.
   delay(400);
   return;
 }
@@ -46,7 +48,6 @@ void setup() {
   pinMode(tempc, INPUT);
   pinMode(relay, OUTPUT);
 
-
   // Serial.println("Vehicle Tracking");
   delay(2000);
   init_receive_sms();
@@ -56,6 +57,7 @@ void resetData(){
   allowGPSSearching=1;
   allowCheckStatus=1;
   payLoad="";
+  number="";  //Clean the number.
 }
 //
 void send_data(String message){
@@ -146,6 +148,10 @@ bool isContain(String payload, String find){
 }
 //
 
+String vehicleStatus(String condition, int temp){
+  return "your vehicle status is condition: "+condition+", temperature: "+temp;
+}
+
 void takeAction(){
   if(isContain(payLoad,"start"))
   {
@@ -159,7 +165,13 @@ void takeAction(){
   {
     // Serial.println("This is checkstatus");
     if(allowCheckStatus){
-      send_sms("Sabu bhala");
+       if (analogRead(accy)<= fallAngle || analogRead(accy) >=flipAngle) //reading<=280, flipAngle>=400
+      {
+      send_sms(vehicleStatus("Danger",60));
+      }
+      else{
+      send_sms(vehicleStatus("Normal",40));
+      }
       allowCheckStatus=0;
     }
   }
@@ -170,15 +182,32 @@ void takeAction(){
   return;
 }
 
-void listenToSMS( unsigned long *endTime,  unsigned long *startTime){
+void listenToSMS(unsigned long *endTime,  unsigned long *startTime){
  if (gsmSerial.available() > 0)
     {
       payLoad = gsmSerial.readString(); 
       number=payLoad.substring(9,22); //Extract the sender number.
-      Serial.println(payLoad);  
+      // Serial.println(payLoad);  
       *startTime=*endTime;
       delay(1000);
     }
+}
+
+
+
+
+void listenToAccySensor(unsigned long *endTime,  unsigned long *startTime){
+  if (analogRead(accy)<= fallAngle || analogRead(accy) >=flipAngle) //reading<=280, flipAngle>=400
+  {
+    *startTime=*endTime;//Reset the while loop
+    number=ownerPhoneNumber;
+    engine_off();
+    //TODO: send_sms is not working properly
+    // delay(1000);
+    // send_sms(vehicleStatus("Danger",21));
+    // delay(1000);
+    tracking();
+  }
 }
 
 void recieveMessage()
@@ -186,6 +215,7 @@ void recieveMessage()
     unsigned long endTime = millis();
     unsigned long startTime = 0;
     listenToSMS(&endTime,&startTime);
+    listenToAccySensor(&endTime,&startTime);
     while ((endTime - startTime) <= loopInterval)
     { 
       listenToSMS(&endTime,&startTime); //while in the loop listen to the SMS
