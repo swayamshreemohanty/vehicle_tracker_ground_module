@@ -1,6 +1,11 @@
 #include <Arduino.h>
 #include "SoftwareSerial.h"
 #include "TinyGPS++.h"
+
+#define accy A0
+#define tempc A1
+#define relay 11
+
 static const uint32_t baudRate =9600 ;
 TinyGPSPlus gps;
 SoftwareSerial gpsSerial(4, 5); //RX, TX
@@ -36,12 +41,16 @@ void setup() {
   Serial.begin(baudRate);
   gpsSerial.begin(baudRate);
   gsmSerial.begin(baudRate);
+
+  pinMode(accy, INPUT);
+  pinMode(tempc, INPUT);
+  pinMode(relay, OUTPUT);
+
+
   // Serial.println("Vehicle Tracking");
   delay(2000);
   init_receive_sms();
 }
-
-
 //
 void resetData(){
   allowGPSSearching=1;
@@ -55,6 +64,7 @@ void send_data(String message){
   return;
 }
 
+
 void send_sms(String message){
   init_sms();
   gsmSerial.print(message);
@@ -62,6 +72,16 @@ void send_sms(String message){
   delay(500);
   init_receive_sms();
   return;
+}
+
+void engine_on(){
+  digitalWrite(relay, HIGH);
+  send_sms("Ignation ON");
+}
+
+void engine_off(){
+  digitalWrite(relay, LOW);
+  send_sms("Ignation OFF");
 }
 
 
@@ -129,11 +149,11 @@ bool isContain(String payload, String find){
 void takeAction(){
   if(isContain(payLoad,"start"))
   {
-    Serial.println("This is start");
+    engine_on();
   }
    else if(isContain(payLoad,"stop"))
   {
-    Serial.println("This is stop");
+    engine_off();
   }
    else if(isContain(payLoad,"checkstatus"))
   {
@@ -150,22 +170,25 @@ void takeAction(){
   return;
 }
 
+void listenToSMS( unsigned long *endTime,  unsigned long *startTime){
+ if (gsmSerial.available() > 0)
+    {
+      payLoad = gsmSerial.readString(); 
+      number=payLoad.substring(9,22); //Extract the sender number.
+      Serial.println(payLoad);  
+      *startTime=*endTime;
+      delay(1000);
+    }
+}
+
 void recieveMessage()
 {
     unsigned long endTime = millis();
     unsigned long startTime = 0;
-
-    if (gsmSerial.available() > 0)
-    {
-      payLoad = gsmSerial.readString(); 
-      number=payLoad.substring(9,22); //Extract the sender number.
-      // Serial.println(payLoad);  
-      startTime=endTime;
-      delay(1000);
-    }
-    //
+    listenToSMS(&endTime,&startTime);
     while ((endTime - startTime) <= loopInterval)
     { 
+      listenToSMS(&endTime,&startTime); //while in the loop listen to the SMS
       takeAction();
       endTime= millis();
     }
