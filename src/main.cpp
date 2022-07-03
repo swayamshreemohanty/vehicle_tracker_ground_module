@@ -14,7 +14,7 @@ boolean allowGPSSearching=1;
 boolean allowCheckStatus=1;
 String number = "";
 String payLoad="";
-String ownerPhoneNumber= "+917008865793"; 
+String ownerPhoneNumber= "+917205308022"; 
 unsigned int loopInterval=20000;
 unsigned long started_waiting_time = 0;
 int fallAngle=280; 
@@ -22,16 +22,14 @@ int flipAngle=400;
 
 void init_receive_sms(){
   gsmSerial.listen();
-  // Serial.println("Init receive");
   gsmSerial.println("AT+CMGF=1"); // Configuring TEXT mode
   delay(500);
   gsmSerial.println("AT+CNMI=2,2,0,0,0");
-  delay(400);
+  delay(500);
   return;
 }
 
 void init_sms(){
-  // Serial.println("Init Send");
   gsmSerial.println("AT+CMGF=1");
   delay(400);
   gsmSerial.println("AT+CMGS=\""+number+"\"");
@@ -48,7 +46,6 @@ void setup() {
   pinMode(tempc, INPUT);
   pinMode(relay, OUTPUT);
 
-  // Serial.println("Vehicle Tracking");
   delay(2000);
   init_receive_sms();
 }
@@ -60,11 +57,6 @@ void resetData(){
   number="";  //Clean the number.
 }
 //
-void send_data(String message){
-  gsmSerial.print(message);
-  delay(200);
-  return;
-}
 
 
 void send_sms(String message){
@@ -79,11 +71,19 @@ void send_sms(String message){
 void engine_on(){
   digitalWrite(relay, HIGH);
   send_sms("Ignation ON");
+  delay(100);
 }
 
 void engine_off(){
   digitalWrite(relay, LOW);
   send_sms("Ignation OFF");
+  delay(100);
+}
+
+
+void emergency_engine_off(){
+  digitalWrite(relay, LOW);
+  delay(100);
 }
 
 
@@ -105,7 +105,6 @@ void tracking()
        gsmSerial.print(gps.location.lng(), 6);
        gsmSerial.println((char)26);// ASCII code of CTRL+Z for saying the end of sms to  the module
        delay(100);
-       //
         init_receive_sms();
         allowGPSSearching=0;
      }
@@ -146,7 +145,6 @@ bool isContain(String payload, String find){
     return false;
   }
 }
-//
 
 String vehicleStatus(String condition, int temp){
   return "your vehicle status is condition: "+condition+", temperature: "+temp;
@@ -187,42 +185,35 @@ void listenToSMS(unsigned long *endTime,  unsigned long *startTime){
     {
       payLoad = gsmSerial.readString(); 
       number=payLoad.substring(9,22); //Extract the sender number.
-      // Serial.println(payLoad);  
       *startTime=*endTime;
-      delay(1000);
+      delay(500);
     }
 }
-
-
-
 
 void listenToAccySensor(unsigned long *endTime,  unsigned long *startTime){
   if (analogRead(accy)<= fallAngle || analogRead(accy) >=flipAngle) //reading<=280, flipAngle>=400
   {
     *startTime=*endTime;//Reset the while loop
     number=ownerPhoneNumber;
-    engine_off();
-    //TODO: send_sms is not working properly
-    // delay(1000);
-    // send_sms(vehicleStatus("Danger",21));
-    // delay(1000);
+    emergency_engine_off();
+    send_sms(vehicleStatus("Danger",90));
     tracking();
   }
 }
 
 void recieveMessage()
 {
-    unsigned long endTime = millis();
-    unsigned long startTime = 0;
-    listenToSMS(&endTime,&startTime);
-    listenToAccySensor(&endTime,&startTime);
-    while ((endTime - startTime) <= loopInterval)
-    { 
-      listenToSMS(&endTime,&startTime); //while in the loop listen to the SMS
-      takeAction();
-      endTime= millis();
-    }
-    resetData();
+  unsigned long endTime = millis();
+  unsigned long startTime = 0;
+  listenToSMS(&endTime,&startTime);
+  listenToAccySensor(&endTime,&startTime);
+  while ((endTime - startTime) <= loopInterval)
+  { 
+    listenToSMS(&endTime,&startTime); //while in the loop listen to the SMS
+    takeAction();
+    endTime= millis();
+  }
+  resetData();
 }
 
 void loop() {
