@@ -4,7 +4,9 @@
 
 #define accy A0
 #define tempc A1
-#define relay 11
+#define ignition 11
+#define starter 12
+
 
 static const uint32_t baudRate =9600 ;
 TinyGPSPlus gps;
@@ -12,11 +14,12 @@ SoftwareSerial gpsSerial(4, 5); //RX, TX
 SoftwareSerial gsmSerial(9, 10); //RX, TX
 boolean allowGPSSearching=1;
 boolean allowCheckStatus=1;
+boolean allowStarter=0;
 String number = "";
 String payLoad="";
 String ownerPhoneNumber= "+917205308022"; 
-unsigned int loopInterval=20000;
-unsigned long started_waiting_time = 0;
+unsigned int VehicleActionLoopInterval=20000;
+unsigned int VehicleStartLoopInterval=3000;
 int fallAngle=280; 
 int flipAngle=400; 
 
@@ -44,17 +47,27 @@ void setup() {
 
   pinMode(accy, INPUT);
   pinMode(tempc, INPUT);
-  pinMode(relay, OUTPUT);
+  pinMode(ignition, OUTPUT);
+  pinMode(starter, OUTPUT);
 
   delay(2000);
   init_receive_sms();
 }
 //
+
+void cleanPayload(){
+  payLoad="";
+}
+
+void cleanSenderNumber(){
+  number="";  //Clean the number.
+}
+
 void resetData(){
   allowGPSSearching=1;
   allowCheckStatus=1;
-  payLoad="";
-  number="";  //Clean the number.
+  cleanPayload();
+  cleanSenderNumber();
 }
 //
 
@@ -68,24 +81,10 @@ void send_sms(String message){
   return;
 }
 
-void engine_on(){
-  digitalWrite(relay, HIGH);
-  send_sms("Ignation ON");
-  delay(100);
-}
-
-void engine_off(){
-  digitalWrite(relay, LOW);
-  send_sms("Ignation OFF");
-  delay(100);
-}
-
-
 void emergency_engine_off(){
-  digitalWrite(relay, LOW);
+  digitalWrite(ignition, LOW);
   delay(100);
 }
-
 
 void tracking()
 {
@@ -113,7 +112,6 @@ void tracking()
   }
   return;
 }
-
 //
 bool isContain(String payload, String find){
   int payloadLength=payload.length();
@@ -150,20 +148,63 @@ String vehicleStatus(String condition, int temp){
   return "your vehicle status is condition: "+condition+", temperature: "+temp;
 }
 
-void takeSMSAction(){
-  if(isContain(payLoad,"start"))
-  {
-    engine_on();
+//Vehicvle operation
+void starter_on(){
+  digitalWrite(starter, HIGH);
+  send_sms("Vehicle started");
+}
+
+void starter_off(){
+   digitalWrite(starter, LOW);
+}
+
+void ignition_on(){
+  digitalWrite(ignition, HIGH);
+  send_sms("Ignition ON");
+  delay(100);
+}
+
+void ignition_off(){
+  digitalWrite(ignition, LOW);
+  send_sms("Ignition OFF");
+  delay(100);
+}
+
+
+void startVehicle(){
+  unsigned long endTime = millis();
+  unsigned long startTime = endTime;
+  starter_on();
+  while ((endTime - startTime) <= VehicleStartLoopInterval)
+  { 
+    endTime= millis();
   }
-   else if(isContain(payLoad,"stop"))
+  starter_off();
+  resetData();
+  return;
+}
+
+void takeSMSAction(){
+  if(isContain(payLoad,"ignition_on"))
   {
-    engine_off();
+    ignition_on();
+    return;
+  }
+   else if(isContain(payLoad,"start_engine"))
+  {
+    startVehicle();
+    return;
+  }
+   else if(isContain(payLoad,"ignition_off"))
+  {
+    ignition_off();
   }
    else if(isContain(payLoad,"checkstatus"))
   {
     // Serial.println("This is checkstatus");
     if(allowCheckStatus){
-       if (analogRead(accy)<= fallAngle || analogRead(accy) >=flipAngle) //reading<=280, flipAngle>=400
+      //reading<=280, flipAngle>=400
+      if (analogRead(accy)<= fallAngle || analogRead(accy) >=flipAngle) 
       {
       send_sms(vehicleStatus("Danger",60));
       }
@@ -182,12 +223,13 @@ void takeSMSAction(){
 
 void listenToSMS(unsigned long *endTime,  unsigned long *startTime){
  if (gsmSerial.available() > 0)
-    {
-      payLoad = gsmSerial.readString(); 
-      number=payLoad.substring(9,22); //Extract the sender number.
-      *startTime=*endTime;
-      delay(500);
-    }
+  {
+    payLoad = gsmSerial.readString(); 
+    number=payLoad.substring(9,22); //Extract the sender number.
+    Serial.println(payLoad);
+    *startTime=*endTime;
+    delay(500);
+  }
 }
 
 void listenToAccySensor(unsigned long *endTime,  unsigned long *startTime){
@@ -201,21 +243,21 @@ void listenToAccySensor(unsigned long *endTime,  unsigned long *startTime){
   }
 }
 
-void groundModule()
-{
+
+void vehicleAction(){
   unsigned long endTime = millis();
   unsigned long startTime = 0;
   listenToSMS(&endTime,&startTime);
   listenToAccySensor(&endTime,&startTime);
-  while ((endTime - startTime) <= loopInterval)
+  while ((endTime - startTime) <= VehicleActionLoopInterval)
   { 
     listenToSMS(&endTime,&startTime); //while in the loop listen to the SMS
     takeSMSAction();
     endTime= millis();
   }
-  resetData();
 }
 
 void loop() {
-  groundModule();
+vehicleAction();
+resetData();
 }
