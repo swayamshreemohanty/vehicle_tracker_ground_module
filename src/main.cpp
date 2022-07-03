@@ -150,7 +150,7 @@ String vehicleStatus(String condition, int temp){
   return "your vehicle status is condition: "+condition+", temperature: "+temp;
 }
 
-void takeAction(){
+void takeSMSAction(){
   if(isContain(payLoad,"start"))
   {
     engine_on();
@@ -201,7 +201,7 @@ void listenToAccySensor(unsigned long *endTime,  unsigned long *startTime){
   }
 }
 
-void recieveMessage()
+void groundModule()
 {
   unsigned long endTime = millis();
   unsigned long startTime = 0;
@@ -210,12 +210,12 @@ void recieveMessage()
   while ((endTime - startTime) <= loopInterval)
   { 
     listenToSMS(&endTime,&startTime); //while in the loop listen to the SMS
-    takeAction();
+    takeSMSAction();
     endTime= millis();
   }
   resetData();
 }
 
 void loop() {
-  recieveMessage();
+  groundModule();
 }
